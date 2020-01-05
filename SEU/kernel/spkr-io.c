@@ -19,11 +19,11 @@ void spkr_set_frequency(unsigned int frequency) {
 
 	div = PIT_TICK_RATE / frequency;
 
-	outb(0x43, 0xbe); 						//select timer 2 in mode 3
+	outb(0xb6, 0x43); 						//select timer 2 in mode 3
 
 	raw_spin_lock_irqsave(&i8253_lock, flags);
-	outb(0x42, (uint8_t) (div) ); 			//write the first 0-7 bits of the frequency divider.
-	outb(0x42, (uint8_t) (div >> 8)); 		//write the last bits 8-15 of the frequency divider.
+	outb((uint8_t) (div), 0x42); 			//write the first 0-7 bits of the frequency divider.
+	outb((uint8_t) (div >> 8), 0x42); 		//write the last bits 8-15 of the frequency divider.
 	raw_spin_unlock_irqrestore(&i8253_lock, flags);
 
 	printk(KERN_INFO "spkr set frequency: %d\n", frequency);
@@ -35,8 +35,17 @@ void spkr_on(void) {
 
 	tmp = inb(0x61);
 
+	printk(KERN_INFO "CONTENT OF 0x61: 0x%02x\n", tmp);
+
   	if (tmp != (tmp | 3)) {
- 		outb(0x61, tmp | 3);
+		uint8_t var = (tmp | 3);
+		printk(KERN_INFO "THE VALUE OF TMP|3 IS: 0x%02x\n", var);
+ 		outb(var, 0x61);
+		
+		//creo que donde escribo no es el mismo sitio del que leo, por eso esta operacion siempre va a dar lo mismo antes y después de escribir al puerto.
+		uint8_t tmp2 = inb(0x61);
+		printk(KERN_INFO "ENTERS THE IF IN SPKR_ON. NEW CONTENT OF 0x61 is: 0x%02x\n", tmp2);
+
  	}
 
 	printk(KERN_INFO "spkr ON\n");
@@ -44,23 +53,29 @@ void spkr_on(void) {
 
 /*Deactivate the speaker manipulating port 0x61*/
 void spkr_off(void) {
-	uint8_t tmp = inb(0x61) & 0xFC;
- 
- 	outb(0x61, tmp);
+	uint8_t tmp1 = inb(0x61);
+
+	uint8_t tmp2 = (tmp1 & 0xFC);
+	
+	printk(KERN_INFO "CONTENT OF 0x61 IN SPKR_OFF: 0x%02x\n", tmp1);
+	printk(KERN_INFO "CONTENT OF 0x61 & 0xFC IN SPKR_OFF: 0x%02x\n", tmp2);
+
+ 	outb(tmp2, 0x61);
 
 	printk(KERN_INFO "spkr OFF\n");
 }
 
-void spkr_init(void) {
+int spkr_init(void) {
 	printk(KERN_INFO "spkr init\n");
-	spkr_set_frequency(1000);
+	spkr_set_frequency(5000);
 	spkr_on();
  	//timer_wait(10);
+	 return 0;
 }
 
 void spkr_exit(void) {
-	printk(KERN_INFO "spkr exit\n");
 	spkr_off();
+	printk(KERN_INFO "spkr exit\n");
 }
 
 module_init(spkr_init);
