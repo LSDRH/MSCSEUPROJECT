@@ -56,7 +56,7 @@ void spkr_off(void) {
 
 int spkr_init(void) {
 	printk(KERN_INFO "spkr init\n");
-	spkr_set_frequency(5000);
+	spkr_set_frequency(1000);
 	spkr_on();
 	return 0;
 }
