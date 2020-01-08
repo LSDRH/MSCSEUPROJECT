@@ -6,6 +6,7 @@
 #include <linux/device.h>
 #include <linux/i8253.h>
 #include <linux/kernel.h>
+#include <linux/atomic.h>
 
 MODULE_LICENSE("GPL");
 
@@ -23,27 +24,57 @@ static struct cdev mydevice;
 static struct class* spkrClass = NULL;
 static struct device* spkrDevice = NULL;
 static int mj;
+atomic_t write_device_open = ATOMIC_INIT(0); /* Is the device open?  Used to prevent multiple access to the device */
+struct info_mydev {
+	struct cdev mydev_cdev;
+};
 
-static int ejemplo_open(struct inode *inode, struct file *filp) {
-	printk(KERN_INFO "ejemplo_open\n");
+static int device_open(struct inode *inode, struct file *filp) {
+
+	printk(KERN_INFO "device_open\n");
+
+	//if we want to open the file in writing mode and it has already been opened, return -EBUSY
+	if(filp->f_mode & FMODE_WRITE) {
+		printk(KERN_INFO "device_open in writing mode\n");
+		if (atomic_read(&write_device_open) > 0) return -EBUSY;
+		else atomic_inc(&write_device_open);
+	}
+	else {
+		printk(KERN_INFO "device_open in read mode\n");
+	}
+
+	struct info_mydev *info_dev = container_of(inode->i_cdev, struct info_mydev, mydev_cdev);
+
+	filp->private_data = info_dev;
+
 	return 0;
 }
 
-static int ejemplo_release(struct inode *inode, struct file *filp) {
-	printk(KERN_INFO "ejemplo_release\n");
+static int device_release(struct inode *inode, struct file *filp) {
+	printk(KERN_INFO "device_release\n");
+
+	//again, if file was open in writing mode, reduce counter
+	if(filp->f_mode & FMODE_WRITE) atomic_dec(&write_device_open);
 	return 0;
 }
-static ssize_t ejemplo_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
-	printk(KERN_INFO "ejemplo_write\n");
+static ssize_t device_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
+	printk(KERN_INFO "device_write\n");
+
+	size_t ret = count;
+	return ret;
+}
+static ssize_t device_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos) {
+	printk(KERN_INFO "device_read\n");
 	size_t ret = count;
 	return ret;
 }
 
 static struct file_operations ejemplo_fops = {
         .owner =    THIS_MODULE,
-        .open =     ejemplo_open,
-        .release =  ejemplo_release,
-        .write =    ejemplo_write
+        .open =     device_open,
+        .release =  device_release,
+        .write =    device_write,
+		.read = 	device_read
 };
 
 /*Manipulate ports 0x42 and 0x43 to set the desired frequency that will be fed to the speaker*/
@@ -148,9 +179,9 @@ int spkr_init(void) {
 	//alta dispositivo en sysfs
 	register_and_load_class();
 
-	//play sound
+	/*play sound
 	spkr_set_frequency(5000);
-	spkr_on();
+	spkr_on();*/
 
 	return 0;
 }
@@ -163,8 +194,8 @@ void spkr_exit(void) {
 	cdev_del(&mydevice);
 	unregister_chrdev_region(midispo, 1);
 
-	//bye sound
-	spkr_off();
+	/*bye sound
+	spkr_off();*/
 }
 
 module_init(spkr_init);
