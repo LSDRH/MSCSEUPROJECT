@@ -7,6 +7,9 @@
 #include <linux/i8253.h>
 #include <linux/kernel.h>
 #include <linux/atomic.h>
+#include <linux/moduleparam.h>
+#include <linux/slab.h>
+#include <linux/kfifo.h>
 
 MODULE_LICENSE("GPL");
 
@@ -16,9 +19,15 @@ MODULE_LICENSE("GPL");
 #define PIT_CHANNEL_2_GATE_PORT 0x61  //To control the input signal gets or not to channel 2 of the pit.
 #define PIT_CHANNEL_2_DATA_PORT 0x42  //To access timer 2.
 #define PIT_OPERATION_MODE_PORT 0x43  //To specify the operation: reads are ignored.
+#define PAGE_SIZE 4096
 
 DEFINE_RAW_SPINLOCK(i8253_lock);
 
+static uint8_t buffer_size = -1;
+static uint8_t buffer_threshold = -1;
+static size_t data_size;					//variable que indica el tamaño de los datos a escribir
+static size_t bytes_to_write;
+static int device_is_active = 0; 
 static dev_t midispo;
 static struct cdev mydevice;
 static struct class* spkrClass = NULL;
@@ -27,7 +36,21 @@ static int mj;
 atomic_t write_device_open = ATOMIC_INIT(0); /* Is the device open?  Used to prevent multiple access to the device */
 struct info_mydev {
 	struct cdev mydev_cdev;
+	struct kfifo fifo;
 };
+
+struct my_sound {
+	uint8_t first_byte;
+	uint8_t second_byte;
+	uint8_t third_byte;
+	uint8_t fourth_byte;
+} sound;
+
+//static DECLARE_KFIFO_PTR(buf_fifo, uint16_t);
+
+//receive parameters buffer_size and buffer_threshold from user.
+module_param(buffer_size, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+module_param(buffer_threshold, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 
 static int device_open(struct inode *inode, struct file *filp) {
 
@@ -59,7 +82,33 @@ static int device_release(struct inode *inode, struct file *filp) {
 }
 static ssize_t device_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
 	printk(KERN_INFO "device_write\n");
+	data_size = count;
+	int ret;
+	size_t copied_bytes;
+	char dir;
+	copy_from_user(&dir, buf, count);
 
+	while (data_size > 0) {
+
+		//IF buffer esta lleno, bloquear proceso
+
+		bytes_to_write = min(data_size, kfifo_avail(&sound.fifo));
+		ret = kfifo_from_user(&sound.fifo, buf, data_to_write, &copied_bytes);
+		if (ret != 0) {
+			printk(KERN_INFO "error in kfifo_from_user\n");
+			return -EFAULT;
+		}
+
+		data_size -= bytes_to_write;
+	
+		buf += data_size;
+
+		if (!device_is_active) {
+			sound.device_is_active = 1;
+			//llamada a funcion asociada al timer
+		}
+
+	}
 	size_t ret = count;
 	return ret;
 }
@@ -178,6 +227,29 @@ int spkr_init(void) {
 
 	//alta dispositivo en sysfs
 	register_and_load_class();
+
+
+
+
+
+	//handle parameters
+	if (buffer_size == -1) { //no buffer size specified
+		buffer_size = PAGE_SIZE;
+	}
+	if((buffer_threshold == -1) | (buffer_threshold > buffer_size)) { //no parameter specified or higher than buffer_size
+		buffer_threshold = buffer_size;
+	}
+
+	//allocate fifo
+	int alloc_kfifo = kfifo_alloc(&sound.fifo, buffer_size, GFP_ATOMIC);
+	if (alloc_kfifo != 0) {
+		printk(KERN_INFO "error allocating KFIFO\n");
+		return -ENOMEM;
+	}
+
+
+
+
 
 	/*play sound
 	spkr_set_frequency(5000);
