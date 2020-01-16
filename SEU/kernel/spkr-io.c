@@ -71,12 +71,13 @@ module_param(buffer_threshold, int, S_IRUGO);
 
 
 /*PRODUCE_SOUND
--Checks if sound is silent -> if it is, sets device off and timer on.
+-Check if sound is silent -> if it is, sets device off and timer on.
 -If not, sets device on, and also set frequency and timer.
 */
 static void produce_sound() {
 	if(sound.frequency == 0) {
 		device_is_active = 0;
+		spkr_off();
 
 		//set timer
 	}
@@ -85,6 +86,8 @@ static void produce_sound() {
 		spkr_set_frequency(sound.frequency);
 
 		//set timer
+
+		spkr_on();
 	}
 }
 
@@ -150,13 +153,12 @@ static int device_release(struct inode *inode, struct file *filp) {
 	if(filp->f_mode & FMODE_WRITE) atomic_dec(&write_device_open);
 	return 0;
 }
+
 static ssize_t device_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
 	printk(KERN_INFO "device_write\n");
 	data_size = count;
 	int ret;
 	size_t copied_bytes;
-	char dir;
-	copy_from_user(&dir, buf, count);
 
 	while (data_size > 0) {
 
