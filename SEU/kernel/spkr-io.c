@@ -9,8 +9,11 @@
 #include <linux/atomic.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
+
 #include <linux/kfifo.h>
 #include <linux/timer.h>
+#include <linux/wait.h>
+#include <linux/sched.h>
 
 MODULE_LICENSE("GPL");
 
@@ -57,13 +60,14 @@ struct kfifo sound_fifo;
 //TIMER
 struct timer_list timer;
 
-
 //SOUND: 1st 2 bytes -> frequency. 2nd 2 bytes -> sound duration.
 struct my_sound {
 	uint16_t frequency;
 	uint16_t length;
 } sound;
 
+//BLOCKING QUEUE
+wait_queue_head_t list_block;
 
 //receive parameters buffer_size and buffer_threshold from user.
 module_param(buffer_size, int, S_IRUGO);
@@ -100,13 +104,13 @@ tasks:
 */
 static void handle_sound() {
 
-	if((kfifo_len(&fifo) >= 4) & (kfifo_empty(&sound_fifo))) { //fifo contains at least a complete sound (4 bytes) and there isn't a sound to be completed in sound_fifo.
+	if((kfifo_len(&fifo) >= 4) & (kfifo_is_empty(&sound_fifo))) { //fifo contains at least a complete sound (4 bytes) and there isn't a sound to be completed in sound_fifo.
 		kfifo_out(&fifo, &sound.frequency, 2);
 		kfifo_out(&fifo, &sound.length, 2);
 
 		produce_sound();
 	}
-	else if ((kfifo_len(&fifo) < 4) | (!kfifo_empty(&sound_fifo))) { //fifo doesn't contain a full sound, or there is a sound to be completed stored in sound_fifo.
+	else if ((kfifo_len(&fifo) < 4) | (!kfifo_is_empty(&sound_fifo))) { //fifo doesn't contain a full sound, or there is a sound to be completed stored in sound_fifo.
 
 		int num_elems_to_copy = min(kfifo_avail(&sound_fifo), kfifo_len(&fifo));
 		
@@ -157,12 +161,19 @@ static int device_release(struct inode *inode, struct file *filp) {
 static ssize_t device_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
 	printk(KERN_INFO "device_write\n");
 	data_size = count;
-	int ret;
+	int ret, retq;
 	size_t copied_bytes;
 
 	while (data_size > 0) {
 
-		//IF buffer esta lleno, bloquear proceso
+		//if fifo is full or not enough space, block current process
+		retq = wait_event_interruptible(list_block, ((kfifo_is_full(&fifo)) | (kfifo_avail(&fifo) > buffer_threshold)));
+		if (retq != 0)
+		{
+			printk(KERN_INFO "error in wait_event_interruptuble\n");
+			return -ERESTARTSYS;
+		}
+		
 
 		bytes_to_write = min(data_size, kfifo_avail(&fifo));
 		ret = kfifo_from_user(&fifo, buf, data_to_write, &copied_bytes);
@@ -176,8 +187,8 @@ static ssize_t device_write(struct file *filp, const char __user *buf, size_t co
 		buf += data_size;
 
 		if (!device_is_active) {
-			sound.device_is_active = 1;
-			//llamada a handle_sound
+			device_is_active = 1;
+			handle_sound();
 		}
 
 	}
@@ -344,7 +355,8 @@ int spkr_init(void) {
 
 
 
-
+	//allocate queue
+	init_waitqueue_head(&list_block);
 
 
 	/*play sound
