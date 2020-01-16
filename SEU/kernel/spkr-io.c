@@ -10,6 +10,7 @@
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/kfifo.h>
+#include <linux/timer.h>
 
 MODULE_LICENSE("GPL");
 
@@ -23,35 +24,104 @@ MODULE_LICENSE("GPL");
 
 DEFINE_RAW_SPINLOCK(i8253_lock);
 
-static uint8_t buffer_size = -1;
-static uint8_t buffer_threshold = -1;
-static size_t data_size;					//variable que indica el tamaño de los datos a escribir
-static size_t bytes_to_write;
+//parameters to be received by user
+static uint8_t buffer_size = PAGE_SIZE;
+static uint8_t buffer_threshold = PAGE_SIZE;
+
+//parameters needed for the write function
+static size_t data_size;					//initially is equal to count. It indicates the remaining data in the user buffer.
+static size_t bytes_to_write;				//indicates the number of bytes to write to the system kfifo.
 static int device_is_active = 0; 
+
+
+//parameters used to set up module
 static dev_t midispo;
 static struct cdev mydevice;
 static struct class* spkrClass = NULL;
 static struct device* spkrDevice = NULL;
 static int mj;
 atomic_t write_device_open = ATOMIC_INIT(0); /* Is the device open?  Used to prevent multiple access to the device */
+
+
+//info_mydev
 struct info_mydev {
 	struct cdev mydev_cdev;
-	struct kfifo fifo;
 };
 
+//KFIFO to copy buffer from user
+struct kfifo fifo;
+
+//KFIFO to handle complete and incomplete sounds
+struct kfifo sound_fifo;
+
+//TIMER
+struct timer_list timer;
+
+
+//SOUND: 1st 2 bytes -> frequency. 2nd 2 bytes -> sound duration.
 struct my_sound {
-	uint8_t first_byte;
-	uint8_t second_byte;
-	uint8_t third_byte;
-	uint8_t fourth_byte;
+	uint16_t frequency;
+	uint16_t length;
 } sound;
 
-//static DECLARE_KFIFO_PTR(buf_fifo, uint16_t);
 
 //receive parameters buffer_size and buffer_threshold from user.
-module_param(buffer_size, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-module_param(buffer_threshold, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+module_param(buffer_size, int, S_IRUGO);
+module_param(buffer_threshold, int, S_IRUGO);
 
+
+/*PRODUCE_SOUND
+-Checks if sound is silent -> if it is, sets device off and timer on.
+-If not, sets device on, and also set frequency and timer.
+*/
+static void produce_sound() {
+	if(sound.frequency == 0) {
+		device_is_active = 0;
+
+		//set timer
+	}
+	else {
+		device_is_active = 1;
+		spkr_set_frequency(sound.frequency);
+
+		//set timer
+	}
+}
+
+/* HANDLE_SOUND
+tasks:
+-Check if there is a complete sound in fifo -> it has 4 bytes at least.
+-If fifo has a complete sound, call produce_sound().
+-If fifo doesn't have a complete sound, fill sound_kfifo 's remaining space with the available bytes in fifo and then check if sound_fifo has a complete sound. If it does, call produce_sound(). If not, turn the device off.
+-If there is a sound to be completed (sound_fifo is not empty) -> we have to complete and play that sound first, even if there are >= 4 bytes in fifo.
+*/
+static void handle_sound() {
+
+	if((kfifo_len(&fifo) >= 4) & (kfifo_empty(&sound_fifo))) { //fifo contains at least a complete sound (4 bytes) and there isn't a sound to be completed in sound_fifo.
+		kfifo_out(&fifo, &sound.frequency, 2);
+		kfifo_out(&fifo, &sound.length, 2);
+
+		produce_sound();
+	}
+	else if ((kfifo_len(&fifo) < 4) | (!kfifo_empty(&sound_fifo))) { //fifo doesn't contain a full sound, or there is a sound to be completed stored in sound_fifo.
+
+		int num_elems_to_copy = min(kfifo_avail(&sound_fifo), kfifo_len(&fifo));
+		
+		kfifo_out(&fifo, &sound_fifo, num_elems_to_copy);
+
+		if(kfifo_len(&sound_fifo) == 4) {	//we have a complete sound
+			kfifo_out(&sound_fifo, &sound.frequency, 2);
+			kfifo_out(&sound_fifo, &sound.length, 2);
+
+			produce_sound();
+		}
+		else {
+			device_is_active = 0;
+		}
+
+	}
+
+}
 static int device_open(struct inode *inode, struct file *filp) {
 
 	printk(KERN_INFO "device_open\n");
@@ -92,8 +162,8 @@ static ssize_t device_write(struct file *filp, const char __user *buf, size_t co
 
 		//IF buffer esta lleno, bloquear proceso
 
-		bytes_to_write = min(data_size, kfifo_avail(&sound.fifo));
-		ret = kfifo_from_user(&sound.fifo, buf, data_to_write, &copied_bytes);
+		bytes_to_write = min(data_size, kfifo_avail(&fifo));
+		ret = kfifo_from_user(&fifo, buf, data_to_write, &copied_bytes);
 		if (ret != 0) {
 			printk(KERN_INFO "error in kfifo_from_user\n");
 			return -EFAULT;
@@ -105,7 +175,7 @@ static ssize_t device_write(struct file *filp, const char __user *buf, size_t co
 
 		if (!device_is_active) {
 			sound.device_is_active = 1;
-			//llamada a funcion asociada al timer
+			//llamada a handle_sound
 		}
 
 	}
@@ -232,20 +302,44 @@ int spkr_init(void) {
 
 
 
-	//handle parameters
-	if (buffer_size == -1) { //no buffer size specified
+	//handle buffer and buffer threshold
+	unsigned int x = 2;
+    
+	if (buffer_size > PAGE_SIZE){
 		buffer_size = PAGE_SIZE;
 	}
-	if((buffer_threshold == -1) | (buffer_threshold > buffer_size)) { //no parameter specified or higher than buffer_size
+	else if(buffer_size & (buffer_size - 1)){ //buffer_size is not a power of 2
+		
+		for (x=2;x<16384;x=x*2){
+
+			if (x>=buffer_size){
+				buffer_size = x;
+				break;
+			}
+
+		}
+	}
+
+	if (buffer_threshold > buffer_size){
 		buffer_threshold = buffer_size;
 	}
 
 	//allocate fifo
-	int alloc_kfifo = kfifo_alloc(&sound.fifo, buffer_size, GFP_ATOMIC);
+	int alloc_kfifo = kfifo_alloc(&fifo, buffer_size, GFP_ATOMIC);
 	if (alloc_kfifo != 0) {
-		printk(KERN_INFO "error allocating KFIFO\n");
+		printk(KERN_INFO "error allocating KFIFO for fifo\n");
 		return -ENOMEM;
 	}
+
+	//allocate fifo to handle complete and incomplete sounds
+	alloc_kfifo = kfifo_alloc(&sound_fifo, 4, GFP_ATOMIC);
+	if (alloc_kfifo != 0) {
+		printk(KERN_INFO "error allocating KFIFO for sound fifo\n");
+		return -ENOMEM;
+	}
+
+	//allocate timer
+
 
 
 
