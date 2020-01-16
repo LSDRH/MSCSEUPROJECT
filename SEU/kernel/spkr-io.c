@@ -14,6 +14,7 @@
 #include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
+#include <linux/jiffies.h>
 
 MODULE_LICENSE("GPL");
 
@@ -23,13 +24,13 @@ MODULE_LICENSE("GPL");
 #define PIT_CHANNEL_2_GATE_PORT 0x61  //To control the input signal gets or not to channel 2 of the pit.
 #define PIT_CHANNEL_2_DATA_PORT 0x42  //To access timer 2.
 #define PIT_OPERATION_MODE_PORT 0x43  //To specify the operation: reads are ignored.
-#define PAGE_SIZE 4096
+//#define PAGE_SIZE 4096
 
 DEFINE_RAW_SPINLOCK(i8253_lock);
 
 //parameters to be received by user
-static uint8_t buffer_size = PAGE_SIZE;
-static uint8_t buffer_threshold = PAGE_SIZE;
+static int buffer_size = PAGE_SIZE;
+static int buffer_threshold = PAGE_SIZE;
 
 //parameters needed for the write function
 static size_t data_size;					//initially is equal to count. It indicates the remaining data in the user buffer.
@@ -62,9 +63,9 @@ struct timer_list timer;
 
 //SOUND: 1st 2 bytes -> frequency. 2nd 2 bytes -> sound duration.
 struct my_sound {
-	uint16_t frequency;
-	uint16_t length;
-} sound;
+	unsigned long frequency;
+	unsigned long ms;
+};
 
 //BLOCKING QUEUE
 wait_queue_head_t list_block;
@@ -73,140 +74,13 @@ wait_queue_head_t list_block;
 module_param(buffer_size, int, S_IRUGO);
 module_param(buffer_threshold, int, S_IRUGO);
 
+//functions
+static int device_open(struct inode *inode, struct file *filp);
+static int device_release(struct inode *inode, struct file *filp);
+static ssize_t device_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos);
+static ssize_t device_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos);
 
-/*PRODUCE_SOUND
--Check if sound is silent -> if it is, sets device off and timer on.
--If not, sets device on, and also set frequency and timer.
-*/
-static void produce_sound(void) {
-	if(sound.frequency == 0) {
-		device_is_active = 0;
-		spkr_off();
 
-		//set timer
-	}
-	else {
-		device_is_active = 1;
-		spkr_set_frequency(sound.frequency);
-
-		//set timer
-
-		spkr_on();
-	}
-}
-
-/* HANDLE_SOUND
-tasks:
--Check if there is a complete sound in fifo -> it has 4 bytes at least.
--If fifo has a complete sound, call produce_sound().
--If fifo doesn't have a complete sound, fill sound_kfifo 's remaining space with the available bytes in fifo and then check if sound_fifo has a complete sound. If it does, call produce_sound(). If not, turn the device off.
--If there is a sound to be completed (sound_fifo is not empty) -> we have to complete and play that sound first, even if there are >= 4 bytes in fifo.
-*/
-static void handle_sound(void) {
-
-	if((kfifo_len(&fifo) >= 4) & (kfifo_is_empty(&sound_fifo))) { //fifo contains at least a complete sound (4 bytes) and there isn't a sound to be completed in sound_fifo.
-		kfifo_out(&fifo, &sound.frequency, 2);
-		kfifo_out(&fifo, &sound.length, 2);
-
-		produce_sound();
-	}
-	else if ((kfifo_len(&fifo) < 4) | (!kfifo_is_empty(&sound_fifo))) { //fifo doesn't contain a full sound, or there is a sound to be completed stored in sound_fifo.
-
-		int num_elems_to_copy = min(kfifo_avail(&sound_fifo), kfifo_len(&fifo));
-		
-		kfifo_out(&fifo, &sound_fifo, num_elems_to_copy);
-
-		if(kfifo_len(&sound_fifo) == 4) {	//we have a complete sound
-			kfifo_out(&sound_fifo, &sound.frequency, 2);
-			kfifo_out(&sound_fifo, &sound.length, 2);
-
-			produce_sound();
-		}
-		else {
-			device_is_active = 0;
-		}
-
-	}
-
-}
-
-void timer_callback(unsigned long data ){
-
-}
-static int device_open(struct inode *inode, struct file *filp) {
-
-	printk(KERN_INFO "device_open\n");
-
-	//if we want to open the file in writing mode and it has already been opened, return -EBUSY
-	if(filp->f_mode & FMODE_WRITE) {
-		printk(KERN_INFO "device_open in writing mode\n");
-		if (atomic_read(&write_device_open) > 0) return -EBUSY;
-		else atomic_inc(&write_device_open);
-	}
-	else {
-		printk(KERN_INFO "device_open in read mode\n");
-	}
-
-	struct info_mydev *info_dev = container_of(inode->i_cdev, struct info_mydev, mydev_cdev);
-
-	filp->private_data = info_dev;
-
-	return 0;
-}
-
-static int device_release(struct inode *inode, struct file *filp) {
-	printk(KERN_INFO "device_release\n");
-
-	//again, if file was open in writing mode, reduce counter
-	if(filp->f_mode & FMODE_WRITE) atomic_dec(&write_device_open);
-	return 0;
-}
-
-static ssize_t device_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
-
-	printk(KERN_INFO "device_write\n");
-	data_size = count;
-	int ret, retq;
-	size_t copied_bytes;
-
-	while (data_size > 0) {
-
-		//if fifo is full or not enough space, block current process
-		retq = wait_event_interruptible(list_block, ((kfifo_is_full(&fifo)) | (kfifo_avail(&fifo) > buffer_threshold)));
-		if (retq != 0)
-		{
-			printk(KERN_INFO "error in wait_event_interruptuble\n");
-			return -ERESTARTSYS;
-		}
-		
-
-		bytes_to_write = min(data_size, kfifo_avail(&fifo));
-		ret = kfifo_from_user(&fifo, buf, data_to_write, &copied_bytes);
-		if (ret != 0) {
-			printk(KERN_INFO "error in kfifo_from_user\n");
-			return -EFAULT;
-		}
-
-		data_size -= copied_bytes;
-	
-		buf += copied_bytes;
-
-		if (!device_is_active) {
-			device_is_active = 1;
-			handle_sound();
-		}
-
-	}
-
-	size_t ret = count;
-	return ret;
-}
-
-static ssize_t device_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos) {
-	printk(KERN_INFO "device_read\n");
-	size_t ret = count;
-	return ret;
-}
 
 static struct file_operations ejemplo_fops = {
         .owner =    THIS_MODULE,
@@ -256,6 +130,165 @@ void spkr_off(void) {
  	outb(tmp2, 0x61);
 
 	printk(KERN_INFO "spkr OFF\n");
+}
+
+/*PRODUCE_SOUND
+-Check if sound is silent -> if it is, sets device off and timer on.
+-If not, sets device on, and also set frequency and timer.
+*/
+static void produce_sound(struct my_sound sound) {
+	if(sound.frequency == 0) {
+		device_is_active = 0;
+		spkr_off();
+
+		//set timer
+		timer.expires = jiffies + msecs_to_jiffies(sound.ms);
+		add_timer(&timer);
+	}
+	else {
+		device_is_active = 1;
+		spkr_set_frequency(sound.frequency);
+		spkr_on();
+
+		//set timer
+		timer.expires = jiffies + msecs_to_jiffies(sound.ms);
+		add_timer(&timer);
+	}
+}
+
+/* HANDLE_SOUND
+tasks:
+-Check if there is a complete sound in fifo -> it has 4 bytes at least.
+-If fifo has a complete sound, call produce_sound().
+-If fifo doesn't have a complete sound, fill sound_kfifo 's remaining space with the available bytes in fifo and then check if sound_fifo has a complete sound. If it does, call produce_sound(). If not, turn the device off.
+-If there is a sound to be completed (sound_fifo is not empty) -> we have to complete and play that sound first, even if there are >= 4 bytes in fifo.
+*/
+static void handle_sound(void) {
+	unsigned char complete_sound[4];
+	struct my_sound sound;
+	//cojo spinlock
+	if((kfifo_len(&fifo) >= 4) & (kfifo_is_empty(&sound_fifo))) { //fifo contains at least a complete sound (4 bytes) and there isn't a sound to be completed in sound_fifo.
+		//kfifo_out(&fifo, &sound.frequency, 2);
+		//kfifo_out(&fifo, &sound.length, 2);
+
+		kfifo_out(&fifo, complete_sound, 4);
+		sound.frequency = (complete_sound[1]<<8)+complete_sound[0];
+		sound.ms = (complete_sound[3]<<8)+complete_sound[2];
+
+		produce_sound(sound);
+	}
+	else if ((kfifo_len(&fifo) < 4) | (!kfifo_is_empty(&sound_fifo))) { //fifo doesn't contain a full sound, or there is a sound to be completed stored in sound_fifo.
+
+		int num_elems_to_copy = min(kfifo_avail(&sound_fifo), kfifo_len(&fifo));
+		
+		kfifo_out(&fifo, &sound_fifo, num_elems_to_copy);
+
+		if(kfifo_len(&sound_fifo) == 4) {	//we have a complete sound
+			kfifo_out(&fifo, complete_sound, 4);
+			sound.frequency = (complete_sound[1]<<8)+complete_sound[0];
+			sound.ms = (complete_sound[3]<<8)+complete_sound[2];
+
+			produce_sound(sound);
+		}
+		else {
+			device_is_active = 0;
+		}
+
+	}
+	//suelto
+}
+
+void timer_callback(unsigned long data ){
+
+	if(kfifo_is_empty(&fifo)) {
+		device_is_active = 0;
+		spkr_off();
+	}
+	else {
+		handle_sound();
+	}
+
+	if(kfifo_avail(&fifo) >= min(data_size, buffer_threshold)) {
+		wake_up_interruptible(&list_block);
+	}
+}
+static int device_open(struct inode *inode, struct file *filp) {
+
+	printk(KERN_INFO "device_open\n");
+
+	//if we want to open the file in writing mode and it has already been opened, return -EBUSY
+	if(filp->f_mode & FMODE_WRITE) {
+		printk(KERN_INFO "device_open in writing mode\n");
+		if (atomic_read(&write_device_open) > 0) return -EBUSY;
+		else atomic_inc(&write_device_open);
+	}
+	else {
+		printk(KERN_INFO "device_open in read mode\n");
+	}
+
+	struct info_mydev *info_dev = container_of(inode->i_cdev, struct info_mydev, mydev_cdev);
+
+	filp->private_data = info_dev;
+
+	return 0;
+}
+
+static int device_release(struct inode *inode, struct file *filp) {
+	printk(KERN_INFO "device_release\n");
+
+	//again, if file was open in writing mode, reduce counter
+	if(filp->f_mode & FMODE_WRITE) atomic_dec(&write_device_open);
+	return 0;
+}
+
+static ssize_t device_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
+	//fifo tiene 2 bytes y count tiene 4
+	printk(KERN_INFO "device_write\n");
+	data_size = count;
+	int ret, retq;
+	int copied_bytes;
+	//nota igual hay que multiplicar count * buffer_size
+	//cojo spinlock
+	while (data_size > 0) {
+
+		//if fifo is full or not enough space, block current process
+		
+		//suelto spinlock
+		retq = wait_event_interruptible(list_block, (kfifo_avail(&fifo) >= buffer_threshold));
+		//cojo otra vez spinlock
+		if (retq != 0)
+		{
+			printk(KERN_INFO "error in wait_event_interruptuble\n");
+			return -ERESTARTSYS;
+		}
+		
+
+		//Copy all possible bytes into fifo
+		bytes_to_write = min(data_size, kfifo_avail(&fifo));
+		ret = kfifo_from_user(&fifo, buf, bytes_to_write, &copied_bytes);
+		if (ret != 0) {
+			printk(KERN_INFO "error in kfifo_from_user\n");
+			return -EFAULT;
+		}
+
+		data_size -= copied_bytes;
+	
+		buf += copied_bytes;
+
+		if (!device_is_active) {
+			device_is_active = 1;
+			//suelto spinlock
+			handle_sound();
+		}
+
+	}
+
+	return count;
+}
+
+static ssize_t device_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos) {
+	printk(KERN_INFO "device_read\n");
+	return count;
 }
 
 static int reserve_mjAndmn(void) {
@@ -359,9 +392,9 @@ int spkr_init(void) {
 	}
 
 	//allocate timer
-	init_timer(&timer);
-	timer.data = (unsigned long) 0;
-	timer.function = timer_callback;
+	timer_setup(&timer, timer_callback, 0);
+	//timer.data = (unsigned long) 0;
+	//timer.function = timer_callback;
 
 	//allocate queue
 	init_waitqueue_head(&list_block);
