@@ -170,24 +170,30 @@ static void handle_sound(void) {
 	if((kfifo_len(&fifo) >= 4) & (kfifo_is_empty(&sound_fifo))) { //fifo contains at least a complete sound (4 bytes) and there isn't a sound to be completed in sound_fifo.
 		//kfifo_out(&fifo, &sound.frequency, 2);
 		//kfifo_out(&fifo, &sound.length, 2);
+		printk(KERN_INFO "[**COMPLETE SOUND IN FIFO**]\n");
 
 		kfifo_out(&fifo, complete_sound, 4);
 		sound.frequency = (complete_sound[1]<<8)+complete_sound[0];
 		sound.ms = (complete_sound[3]<<8)+complete_sound[2];
 
+		printk(KERN_INFO "frequency = %d\nms = %d\n", sound.frequency, sound.ms);
 		produce_sound(sound);
 	}
 	else if ((kfifo_len(&fifo) < 4) | (!kfifo_is_empty(&sound_fifo))) { //fifo doesn't contain a full sound, or there is a sound to be completed stored in sound_fifo.
 
 		int num_elems_to_copy = min(kfifo_avail(&sound_fifo), kfifo_len(&fifo));
+
+		printk(KERN_INFO "[**INCOMPLETE SOUND IN FIFO**]\n copying %d bytes to sound fifo...\n", num_elems_to_copy);
 		
 		kfifo_out(&fifo, &sound_fifo, num_elems_to_copy);
 
 		if(kfifo_len(&sound_fifo) == 4) {	//we have a complete sound
+			printk(KERN_INFO "[**COMPLETE SOUND IN SOUND FIFO**]\n");
 			kfifo_out(&fifo, complete_sound, 4);
 			sound.frequency = (complete_sound[1]<<8)+complete_sound[0];
 			sound.ms = (complete_sound[3]<<8)+complete_sound[2];
 
+			printk(KERN_INFO "frequency = %d\nms = %d\n", sound.frequency, sound.ms);
 			produce_sound(sound);
 		}
 		else {
@@ -198,20 +204,24 @@ static void handle_sound(void) {
 	//suelto
 }
 
-void timer_callback(unsigned long data ){
+void timer_callback(struct timer_list  *timer){
 
 	if(kfifo_is_empty(&fifo)) {
+		printk(KERN_INFO "[timer_callback] no more sounds in fifo.\n");
 		device_is_active = 0;
 		spkr_off();
 	}
 	else {
+		printk(KERN_INFO "[timer_callback] Still some sounds in fifo -> handle_sound().");
 		handle_sound();
 	}
 
 	if(kfifo_avail(&fifo) >= min(data_size, buffer_threshold)) {
+		printk(KERN_INFO, "[timer_callback] Space available -> waking up process.\n");
 		wake_up_interruptible(&list_block);
 	}
 }
+
 static int device_open(struct inode *inode, struct file *filp) {
 
 	printk(KERN_INFO "device_open\n");
@@ -242,9 +252,9 @@ static int device_release(struct inode *inode, struct file *filp) {
 }
 
 static ssize_t device_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
-	//fifo tiene 2 bytes y count tiene 4
+
 	printk(KERN_INFO "device_write\n");
-	data_size = count;
+	data_size = count * buffer_size;
 	int ret, retq;
 	int copied_bytes;
 	//nota igual hay que multiplicar count * buffer_size
@@ -276,6 +286,8 @@ static ssize_t device_write(struct file *filp, const char __user *buf, size_t co
 		buf += copied_bytes;
 
 		if (!device_is_active) {
+
+			printk(KERN_INFO "[device_write] %d bytes copied to fifo. There are still %d to copy. --> handle_sound.\n", copied_bytes, data_size);
 			device_is_active = 1;
 			//suelto spinlock
 			handle_sound();
@@ -393,6 +405,9 @@ int spkr_init(void) {
 
 	//allocate timer
 	timer_setup(&timer, timer_callback, 0);
+	
+	
+	//init_timer(&timer);
 	//timer.data = (unsigned long) 0;
 	//timer.function = timer_callback;
 
@@ -409,7 +424,8 @@ int spkr_init(void) {
 
 void spkr_exit(void) {
 	printk(KERN_INFO "spkr exit\n");
-
+	del_timer_sync(&timer);
+	spkr_off();
 	device_destroy(spkrClass, midispo);
 	class_destroy(spkrClass);
 	cdev_del(&mydevice);
