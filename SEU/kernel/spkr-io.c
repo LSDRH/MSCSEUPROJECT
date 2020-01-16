@@ -78,7 +78,7 @@ module_param(buffer_threshold, int, S_IRUGO);
 -Check if sound is silent -> if it is, sets device off and timer on.
 -If not, sets device on, and also set frequency and timer.
 */
-static void produce_sound() {
+static void produce_sound(void) {
 	if(sound.frequency == 0) {
 		device_is_active = 0;
 		spkr_off();
@@ -102,7 +102,7 @@ tasks:
 -If fifo doesn't have a complete sound, fill sound_kfifo 's remaining space with the available bytes in fifo and then check if sound_fifo has a complete sound. If it does, call produce_sound(). If not, turn the device off.
 -If there is a sound to be completed (sound_fifo is not empty) -> we have to complete and play that sound first, even if there are >= 4 bytes in fifo.
 */
-static void handle_sound() {
+static void handle_sound(void) {
 
 	if((kfifo_len(&fifo) >= 4) & (kfifo_is_empty(&sound_fifo))) { //fifo contains at least a complete sound (4 bytes) and there isn't a sound to be completed in sound_fifo.
 		kfifo_out(&fifo, &sound.frequency, 2);
@@ -127,6 +127,10 @@ static void handle_sound() {
 		}
 
 	}
+
+}
+
+void timer_callback(unsigned long data ){
 
 }
 static int device_open(struct inode *inode, struct file *filp) {
@@ -159,6 +163,7 @@ static int device_release(struct inode *inode, struct file *filp) {
 }
 
 static ssize_t device_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
+
 	printk(KERN_INFO "device_write\n");
 	data_size = count;
 	int ret, retq;
@@ -192,6 +197,7 @@ static ssize_t device_write(struct file *filp, const char __user *buf, size_t co
 		}
 
 	}
+
 	size_t ret = count;
 	return ret;
 }
@@ -353,8 +359,9 @@ int spkr_init(void) {
 	}
 
 	//allocate timer
-
-
+	init_timer(&timer);
+	timer.data = (unsigned long) 0;
+	timer.function = timer_callback;
 
 	//allocate queue
 	init_waitqueue_head(&list_block);
