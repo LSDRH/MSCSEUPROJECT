@@ -182,9 +182,9 @@ static ssize_t device_write(struct file *filp, const char __user *buf, size_t co
 			return -EFAULT;
 		}
 
-		data_size -= bytes_to_write;
+		data_size -= copied_bytes;
 	
-		buf += data_size;
+		buf += copied_bytes;
 
 		if (!device_is_active) {
 			device_is_active = 1;
@@ -195,6 +195,7 @@ static ssize_t device_write(struct file *filp, const char __user *buf, size_t co
 	size_t ret = count;
 	return ret;
 }
+
 static ssize_t device_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos) {
 	printk(KERN_INFO "device_read\n");
 	size_t ret = count;
