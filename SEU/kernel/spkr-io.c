@@ -18,6 +18,8 @@
 
 #include <linux/spinlock.h>
 
+#include <asm/uaccess.h>
+
 MODULE_LICENSE("GPL");
 
 #define  DEVICE_NAME "spkr"
@@ -226,8 +228,11 @@ void timer_callback(struct timer_list  *timer){
 		handle_sound();
 	}
 
-	if(kfifo_avail(&fifo) >= min(data_size, buffer_threshold)) {
-		printk(KERN_INFO, "[timer_callback] Space available -> waking up process.\n");
+	printk(KERN_INFO "[timer_callback] kfifo_avail = %d\n", kfifo_avail(&fifo));
+	printk(KERN_INFO "[timer_callback] min(data_size, buffer_threshold) = %d\n", min(data_size, buffer_threshold));
+
+	if(kfifo_avail(&fifo) >= min(data_size, buffer_threshold) | kfifo_is_empty(&fifo)) {
+		printk(KERN_INFO "[timer_callback] Space available -> waking up process.\n");
 		wake_up_interruptible(&list_block);
 	}
 }
@@ -268,6 +273,13 @@ static ssize_t device_write(struct file *filp, const char __user *buf, size_t co
 	int ret, retq;
 	int copied_bytes;
 	//nota igual hay que multiplicar count * buffer_size
+	const char *test_buf;
+
+	if(get_user(test_buf, buf) != 0) {
+		printk(KERN_ALERT "Error in user buffer.\n");
+		return -EFAULT;
+	}
+
 	//cojo spinlock
 	spin_lock_bh(&fifo_lock);
 	while (data_size > 0) {
@@ -277,7 +289,9 @@ static ssize_t device_write(struct file *filp, const char __user *buf, size_t co
 		//if fifo is full or not enough space, block current process
 		
 		//suelto spinlock
-		if(kfifo_is_full(&fifo) | (kfifo_avail(&fifo) < buffer_threshold)) {
+		printk(KERN_INFO "fifo avail = %d\n", (kfifo_avail(&fifo)));
+
+		if(kfifo_is_full(&fifo)) {
 			printk(KERN_INFO "[device_write] PROCESS IS GOING TO BLOCK.\n");
 
 			spin_unlock_bh(&fifo_lock);
@@ -301,15 +315,17 @@ static ssize_t device_write(struct file *filp, const char __user *buf, size_t co
 		}
 
 		data_size -= copied_bytes;
+		printk(KERN_INFO "[device_write] %d bytes copied to fifo. There are still %d to copy.\n", copied_bytes, data_size);
+		printk(KERN_INFO "fifo len = %d\n", kfifo_len(&fifo));
 	
 		buf += copied_bytes;
 
 		if (!device_is_active) {
 
-			printk(KERN_INFO "[device_write] %d bytes copied to fifo. There are still %d to copy. --> handle_sound.\n", copied_bytes, data_size);
 			device_is_active = 1;
 			//suelto spinlock
 			spin_unlock_bh(&fifo_lock);
+			printk(KERN_INFO "[device_write]-->handle_sound.\n");
 			handle_sound();
 			spin_lock_bh(&fifo_lock);
 		}

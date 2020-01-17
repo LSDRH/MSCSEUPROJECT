@@ -1,160 +1,297 @@
-[ 5714.216010] [device_init] buffer_threshold = 16
-[ 5720.858651] device_open
-[ 5720.858655] device_open in writing mode
-[ 5720.858694] device_write
-[ 5720.858698] [device_write] 4 bytes copied to fifo. There are still 0 to copy. --> handle_sound.
-[ 5720.858699] [**COMPLETE SOUND IN FIFO**]
-[ 5720.858702] frequency = 1047
+[  232.044637] [device_init] buffer_threshold = 32
+[  255.219969] device_open
+[  255.219973] device_open in writing mode
+[  255.220024] device_write iterating
+[  255.220027] device_is_active = 0
+[  255.220030] fifo avail = 32
+[  255.220034] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  255.220036] fifo len = 4
+[  255.220038] [device_write]-->handle_sound.
+[  255.220040] [**COMPLETE SOUND IN FIFO**]
+[  255.220043] frequency = 1047
                ms = 562
-[ 5720.858720] spkr set frequency: 1047
-[ 5720.858774] spkr ON
-[ 5720.858837] device_write
-[ 5720.858852] device_write
-[ 5720.858862] device_write
-[ 5720.858869] device_write
-[ 5720.858876] device_write
-[ 5720.858884] device_write
-[ 5720.858885] [device_write] PROCESS IS GOING TO BLOCK.
-[ 5721.446740] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5721.446743] [**COMPLETE SOUND IN FIFO**]
-[ 5721.446746] frequency = 1319
+[  255.220062] spkr set frequency: 1047
+[  255.220235] spkr ON
+[  255.220254] device_write iterating
+[  255.220256] device_is_active = 1
+[  255.220258] fifo avail = 32
+[  255.220261] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  255.220263] fifo len = 4
+[  255.220271] device_write iterating
+[  255.220273] device_is_active = 1
+[  255.220275] fifo avail = 28
+[  255.220277] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  255.220279] fifo len = 8
+[  255.220286] device_write iterating
+[  255.220288] device_is_active = 1
+[  255.220290] fifo avail = 24
+[  255.220292] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  255.220294] fifo len = 12
+[  255.220302] device_write iterating
+[  255.220304] device_is_active = 1
+[  255.220305] fifo avail = 20
+[  255.220308] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  255.220309] fifo len = 16
+[  255.220318] device_write iterating
+[  255.220319] device_is_active = 1
+[  255.220321] fifo avail = 16
+[  255.220323] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  255.220324] fifo len = 20
+[  255.220333] device_write iterating
+[  255.220334] device_is_active = 1
+[  255.220336] fifo avail = 12
+[  255.220338] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  255.220340] fifo len = 24
+[  255.220348] device_write iterating
+[  255.220350] device_is_active = 1
+[  255.220351] fifo avail = 8
+[  255.220353] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  255.220355] fifo len = 28
+[  255.220364] device_write iterating
+[  255.220365] device_is_active = 1
+[  255.220367] fifo avail = 4
+[  255.220369] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  255.220371] fifo len = 32
+[  255.220379] device_write iterating
+[  255.220381] device_is_active = 1
+[  255.220382] fifo avail = 0
+[  255.220384] [device_write] PROCESS IS GOING TO BLOCK.
+[  255.797397] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  255.797401] [**COMPLETE SOUND IN FIFO**]
+[  255.797405] frequency = 1319
                ms = 375
-[ 5721.446764] spkr set frequency: 1319
-[ 5721.446768] spkr ON
-[ 5721.446825] device_write
-[ 5721.446826] [device_write] PROCESS IS GOING TO BLOCK.
-[ 5721.830789] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5721.830793] [**COMPLETE SOUND IN FIFO**]
-[ 5721.830816] frequency = 1480
+[  255.797424] spkr set frequency: 1319
+[  255.797428] spkr ON
+[  255.797432] [timer_callback] kfifo_avail = 4
+[  255.797434] [timer_callback] min(data_size, buffer_threshold) = 4
+[  255.797435] [timer_callback] Space available -> waking up process.
+[  255.797496] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  255.797498] fifo len = 32
+[  255.797527] device_write iterating
+[  255.797528] device_is_active = 1
+[  255.797530] fifo avail = 0
+[  255.797531] [device_write] PROCESS IS GOING TO BLOCK.
+[  256.181426] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  256.181430] [**COMPLETE SOUND IN FIFO**]
+[  256.181435] frequency = 1480
                ms = 375
-[ 5721.830845] spkr set frequency: 1480
-[ 5721.830853] spkr ON
-[ 5721.830915] device_write
-[ 5721.830923] [device_write] PROCESS IS GOING TO BLOCK.
-[ 5722.214820] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5722.214822] [**COMPLETE SOUND IN FIFO**]
-[ 5722.214825] frequency = 1760
+[  256.181454] spkr set frequency: 1480
+[  256.181459] spkr ON
+[  256.181463] [timer_callback] kfifo_avail = 4
+[  256.181465] [timer_callback] min(data_size, buffer_threshold) = 4
+[  256.181466] [timer_callback] Space available -> waking up process.
+[  256.181537] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  256.181538] fifo len = 32
+[  256.181563] device_write iterating
+[  256.181564] device_is_active = 1
+[  256.181565] fifo avail = 0
+[  256.181566] [device_write] PROCESS IS GOING TO BLOCK.
+[  256.565433] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  256.565437] [**COMPLETE SOUND IN FIFO**]
+[  256.565441] frequency = 1760
                ms = 187
-[ 5722.214844] spkr set frequency: 1760
-[ 5722.214848] spkr ON
-[ 5722.214904] device_write
-[ 5722.214905] [device_write] PROCESS IS GOING TO BLOCK.
-[ 5722.406746] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5722.406751] [**COMPLETE SOUND IN FIFO**]
-[ 5722.406755] frequency = 1568
+[  256.565460] spkr set frequency: 1760
+[  256.565465] spkr ON
+[  256.565469] [timer_callback] kfifo_avail = 4
+[  256.565470] [timer_callback] min(data_size, buffer_threshold) = 4
+[  256.565471] [timer_callback] Space available -> waking up process.
+[  256.565536] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  256.565538] fifo len = 32
+[  256.565561] device_write iterating
+[  256.565563] device_is_active = 1
+[  256.565564] fifo avail = 0
+[  256.565565] [device_write] PROCESS IS GOING TO BLOCK.
+[  256.757393] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  256.757397] [**COMPLETE SOUND IN FIFO**]
+[  256.757419] frequency = 1568
                ms = 562
-[ 5722.406774] spkr set frequency: 1568
-[ 5722.406779] spkr ON
-[ 5722.406869] device_write
-[ 5722.406871] [device_write] PROCESS IS GOING TO BLOCK.
-[ 5722.982785] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5722.982790] [**COMPLETE SOUND IN FIFO**]
-[ 5722.982794] frequency = 1319
+[  256.757441] spkr set frequency: 1568
+[  256.757449] spkr ON
+[  256.757454] [timer_callback] kfifo_avail = 4
+[  256.757458] [timer_callback] min(data_size, buffer_threshold) = 4
+[  256.757462] [timer_callback] Space available -> waking up process.
+[  256.757491] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  256.757493] fifo len = 32
+[  256.757515] device_write iterating
+[  256.757517] device_is_active = 1
+[  256.757518] fifo avail = 0
+[  256.757523] [device_write] PROCESS IS GOING TO BLOCK.
+[  257.333596] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  257.333600] [**COMPLETE SOUND IN FIFO**]
+[  257.333604] frequency = 1319
                ms = 375
-[ 5722.982813] spkr set frequency: 1319
-[ 5722.982818] spkr ON
-[ 5722.982920] device_write
-[ 5722.982921] [device_write] PROCESS IS GOING TO BLOCK.
-[ 5723.366779] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5723.366782] [**COMPLETE SOUND IN FIFO**]
-[ 5723.366785] frequency = 1047
+[  257.333623] spkr set frequency: 1319
+[  257.333628] spkr ON
+[  257.333631] [timer_callback] kfifo_avail = 4
+[  257.333632] [timer_callback] min(data_size, buffer_threshold) = 4
+[  257.333634] [timer_callback] Space available -> waking up process.
+[  257.333666] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  257.333668] fifo len = 32
+[  257.333692] device_write iterating
+[  257.333694] device_is_active = 1
+[  257.333695] fifo avail = 0
+[  257.333696] [device_write] PROCESS IS GOING TO BLOCK.
+[  257.717432] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  257.717435] [**COMPLETE SOUND IN FIFO**]
+[  257.717438] frequency = 1047
                ms = 375
-[ 5723.366803] spkr set frequency: 1047
-[ 5723.366808] spkr ON
-[ 5723.366858] device_write
-[ 5723.366858] [device_write] PROCESS IS GOING TO BLOCK.
-[ 5723.750741] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5723.750745] [**COMPLETE SOUND IN FIFO**]
-[ 5723.750750] frequency = 880
+[  257.717455] spkr set frequency: 1047
+[  257.717460] spkr ON
+[  257.717462] [timer_callback] kfifo_avail = 4
+[  257.717463] [timer_callback] min(data_size, buffer_threshold) = 4
+[  257.717464] [timer_callback] Space available -> waking up process.
+[  257.717504] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  257.717505] fifo len = 32
+[  257.717521] device_write iterating
+[  257.717522] device_is_active = 1
+[  257.717523] fifo avail = 0
+[  257.717524] [device_write] PROCESS IS GOING TO BLOCK.
+[  258.101390] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  258.101393] [**COMPLETE SOUND IN FIFO**]
+[  258.101396] frequency = 880
                ms = 187
-[ 5723.750768] spkr set frequency: 880
-[ 5723.750773] spkr ON
-[ 5723.750826] device_write
-[ 5723.750828] [device_write] PROCESS IS GOING TO BLOCK.
-[ 5723.942776] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5723.942780] [**COMPLETE SOUND IN FIFO**]
-[ 5723.942785] frequency = 740
+[  258.101415] spkr set frequency: 880
+[  258.101419] spkr ON
+[  258.101422] [timer_callback] kfifo_avail = 4
+[  258.101423] [timer_callback] min(data_size, buffer_threshold) = 4
+[  258.101424] [timer_callback] Space available -> waking up process.
+[  258.101468] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  258.101469] fifo len = 32
+[  258.101487] device_write iterating
+[  258.101488] device_is_active = 1
+[  258.101489] fifo avail = 0
+[  258.101490] [device_write] PROCESS IS GOING TO BLOCK.
+[  258.293436] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  258.293440] [**COMPLETE SOUND IN FIFO**]
+[  258.293444] frequency = 740
                ms = 187
-[ 5723.942804] spkr set frequency: 740
-[ 5723.942809] spkr ON
-[ 5723.942895] device_write
-[ 5723.942897] [device_write] PROCESS IS GOING TO BLOCK.
-[ 5724.134749] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5724.134754] [**COMPLETE SOUND IN FIFO**]
-[ 5724.134759] frequency = 740
+[  258.293462] spkr set frequency: 740
+[  258.293467] spkr ON
+[  258.293471] [timer_callback] kfifo_avail = 4
+[  258.293473] [timer_callback] min(data_size, buffer_threshold) = 4
+[  258.293474] [timer_callback] Space available -> waking up process.
+[  258.293532] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  258.293533] fifo len = 32
+[  258.293557] device_write iterating
+[  258.293558] device_is_active = 1
+[  258.293559] fifo avail = 0
+[  258.293561] [device_write] PROCESS IS GOING TO BLOCK.
+[  258.485386] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  258.485389] [**COMPLETE SOUND IN FIFO**]
+[  258.485392] frequency = 740
                ms = 187
-[ 5724.134778] spkr set frequency: 740
-[ 5724.134783] spkr ON
-[ 5724.134863] device_write
-[ 5724.134865] [device_write] PROCESS IS GOING TO BLOCK.
-[ 5724.326782] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5724.326786] [**COMPLETE SOUND IN FIFO**]
-[ 5724.326791] frequency = 740
+[  258.485409] spkr set frequency: 740
+[  258.485414] spkr ON
+[  258.485416] [timer_callback] kfifo_avail = 4
+[  258.485417] [timer_callback] min(data_size, buffer_threshold) = 4
+[  258.485417] [timer_callback] Space available -> waking up process.
+[  258.485472] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  258.485473] fifo len = 32
+[  258.485490] device_write iterating
+[  258.485491] device_is_active = 1
+[  258.485492] fifo avail = 0
+[  258.485493] [device_write] PROCESS IS GOING TO BLOCK.
+[  258.677418] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  258.677421] [**COMPLETE SOUND IN FIFO**]
+[  258.677423] frequency = 740
                ms = 187
-[ 5724.326809] spkr set frequency: 740
-[ 5724.326814] spkr ON
-[ 5724.326924] device_write
-[ 5724.326926] [device_write] PROCESS IS GOING TO BLOCK.
-[ 5724.518746] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5724.518750] [**COMPLETE SOUND IN FIFO**]
-[ 5724.518755] frequency = 784
+[  258.677440] spkr set frequency: 740
+[  258.677445] spkr ON
+[  258.677446] [timer_callback] kfifo_avail = 4
+[  258.677447] [timer_callback] min(data_size, buffer_threshold) = 4
+[  258.677448] [timer_callback] Space available -> waking up process.
+[  258.677479] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  258.677480] fifo len = 32
+[  258.677492] device_write iterating
+[  258.677493] device_is_active = 1
+[  258.677493] fifo avail = 0
+[  258.677494] [device_write] PROCESS IS GOING TO BLOCK.
+[  258.869391] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  258.869394] [**COMPLETE SOUND IN FIFO**]
+[  258.869397] frequency = 784
                ms = 750
-[ 5724.518773] spkr set frequency: 784
-[ 5724.518778] spkr ON
-[ 5724.518877] device_write
-[ 5724.518879] [device_write] PROCESS IS GOING TO BLOCK.
-[ 5725.286735] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5725.286738] [**COMPLETE SOUND IN FIFO**]
-[ 5725.286742] frequency = 0
+[  258.869415] spkr set frequency: 784
+[  258.869420] spkr ON
+[  258.869423] [timer_callback] kfifo_avail = 4
+[  258.869424] [timer_callback] min(data_size, buffer_threshold) = 4
+[  258.869425] [timer_callback] Space available -> waking up process.
+[  258.869468] [device_write] 4 bytes copied to fifo. There are still 0 to copy.
+[  258.869469] fifo len = 32
+[  258.869488] device_release
+[  259.637441] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  259.637445] [**COMPLETE SOUND IN FIFO**]
+[  259.637449] frequency = 0
                ms = 187
-[ 5725.286743] SILENCIO
-[ 5725.286753] spkr OFF
-[ 5725.286810] device_write
-[ 5725.286811] [device_write] PROCESS IS GOING TO BLOCK.
-[ 5725.478735] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5725.478738] [**COMPLETE SOUND IN FIFO**]
-[ 5725.478741] frequency = 0
+[  259.637450] SILENCIO
+[  259.637461] spkr OFF
+[  259.637465] [timer_callback] kfifo_avail = 4
+[  259.637466] [timer_callback] min(data_size, buffer_threshold) = 0
+[  259.637467] [timer_callback] Space available -> waking up process.
+[  259.829392] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  259.829395] [**COMPLETE SOUND IN FIFO**]
+[  259.829398] frequency = 0
                ms = 187
-[ 5725.478742] SILENCIO
-[ 5725.478752] spkr OFF
-[ 5725.478807] device_write
-[ 5725.478808] [device_write] PROCESS IS GOING TO BLOCK.
-[ 5725.670768] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5725.670771] [**COMPLETE SOUND IN FIFO**]
-[ 5725.670788] frequency = 740
+[  259.829399] SILENCIO
+[  259.829407] spkr OFF
+[  259.829410] [timer_callback] kfifo_avail = 8
+[  259.829411] [timer_callback] min(data_size, buffer_threshold) = 0
+[  259.829412] [timer_callback] Space available -> waking up process.
+[  260.021445] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  260.021449] [**COMPLETE SOUND IN FIFO**]
+[  260.021453] frequency = 740
                ms = 187
-[ 5725.670807] spkr set frequency: 740
-[ 5725.670819] spkr ON
-[ 5725.670905] device_release
-[ 5725.862737] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5725.862742] [**COMPLETE SOUND IN FIFO**]
-[ 5725.862746] frequency = 740
+[  260.021471] spkr set frequency: 740
+[  260.021482] spkr ON
+[  260.021486] [timer_callback] kfifo_avail = 12
+[  260.021488] [timer_callback] min(data_size, buffer_threshold) = 0
+[  260.021489] [timer_callback] Space available -> waking up process.
+[  260.213418] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  260.213420] [**COMPLETE SOUND IN FIFO**]
+[  260.213423] frequency = 740
                ms = 187
-[ 5725.862861] spkr set frequency: 740
-[ 5725.862865] spkr ON
-[ 5726.054747] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5726.054751] [**COMPLETE SOUND IN FIFO**]
-[ 5726.054755] frequency = 740
+[  260.213440] spkr set frequency: 740
+[  260.213444] spkr ON
+[  260.213446] [timer_callback] kfifo_avail = 16
+[  260.213447] [timer_callback] min(data_size, buffer_threshold) = 0
+[  260.213448] [timer_callback] Space available -> waking up process.
+[  260.405554] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  260.405558] [**COMPLETE SOUND IN FIFO**]
+[  260.405561] frequency = 740
                ms = 187
-[ 5726.054774] spkr set frequency: 740
-[ 5726.054779] spkr ON
-[ 5726.250744] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5726.250747] [**COMPLETE SOUND IN FIFO**]
-[ 5726.250750] frequency = 784
+[  260.405579] spkr set frequency: 740
+[  260.405584] spkr ON
+[  260.405587] [timer_callback] kfifo_avail = 20
+[  260.405588] [timer_callback] min(data_size, buffer_threshold) = 0
+[  260.405589] [timer_callback] Space available -> waking up process.
+[  260.597488] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  260.597490] [**COMPLETE SOUND IN FIFO**]
+[  260.597506] frequency = 784
                ms = 187
-[ 5726.250768] spkr set frequency: 784
-[ 5726.250772] spkr ON
-[ 5726.442754] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5726.442758] [**COMPLETE SOUND IN FIFO**]
-[ 5726.442763] frequency = 932
+[  260.597524] spkr set frequency: 784
+[  260.597529] spkr ON
+[  260.597532] [timer_callback] kfifo_avail = 24
+[  260.597533] [timer_callback] min(data_size, buffer_threshold) = 0
+[  260.597535] [timer_callback] Space available -> waking up process.
+[  260.789400] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  260.789403] [**COMPLETE SOUND IN FIFO**]
+[  260.789407] frequency = 932
                ms = 562
-[ 5726.442781] spkr set frequency: 932
-[ 5726.442786] spkr ON
-[ 5727.014737] [timer_callback] Still some sounds in fifo -> handle_sound().
-[ 5727.014741] [**COMPLETE SOUND IN FIFO**]
-[ 5727.014746] frequency = 1047
+[  260.789425] spkr set frequency: 932
+[  260.789430] spkr ON
+[  260.789432] [timer_callback] kfifo_avail = 28
+[  260.789434] [timer_callback] min(data_size, buffer_threshold) = 0
+[  260.789435] [timer_callback] Space available -> waking up process.
+[  261.365568] [timer_callback] Still some sounds in fifo -> handle_sound().
+[  261.365572] [**COMPLETE SOUND IN FIFO**]
+[  261.365576] frequency = 1047
                ms = 187
-[ 5727.014764] spkr set frequency: 1047
-[ 5727.014769] spkr ON
-[ 5727.206736] [timer_callback] no more sounds in fifo.
-[ 5727.206748] spkr OFF
+[  261.365595] spkr set frequency: 1047
+[  261.365600] spkr ON
+[  261.365603] [timer_callback] kfifo_avail = 32
+[  261.365605] [timer_callback] min(data_size, buffer_threshold) = 0
+[  261.365606] [timer_callback] Space available -> waking up process.
+[  261.557405] [timer_callback] no more sounds in fifo.
+[  261.557417] spkr OFF
+[  261.557420] [timer_callback] kfifo_avail = 32
+[  261.557422] [timer_callback] min(data_size, buffer_threshold) = 0
+[  261.557423] [timer_callback] Space available -> waking up process.
