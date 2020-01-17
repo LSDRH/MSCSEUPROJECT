@@ -172,7 +172,7 @@ static void handle_sound(void) {
 		//kfifo_out(&fifo, &sound.length, 2);
 		printk(KERN_INFO "[**COMPLETE SOUND IN FIFO**]\n");
 
-		kfifo_out(&fifo, complete_sound, 4);
+		kfifo_out(&fifo, &complete_sound, 4);
 		sound.frequency = (complete_sound[1]<<8)+complete_sound[0];
 		sound.ms = (complete_sound[3]<<8)+complete_sound[2];
 
@@ -180,16 +180,18 @@ static void handle_sound(void) {
 		produce_sound(sound);
 	}
 	else if ((kfifo_len(&fifo) < 4) | (!kfifo_is_empty(&sound_fifo))) { //fifo doesn't contain a full sound, or there is a sound to be completed stored in sound_fifo.
+		unsigned char aux_sound[4];
 
 		int num_elems_to_copy = min(kfifo_avail(&sound_fifo), kfifo_len(&fifo));
 
 		printk(KERN_INFO "[**INCOMPLETE SOUND IN FIFO**]\n copying %d bytes to sound fifo...\n", num_elems_to_copy);
 		
-		kfifo_out(&fifo, &sound_fifo, num_elems_to_copy);
+		kfifo_out(&fifo, &aux_sound, num_elems_to_copy);
+		kfifo_in(&sound_fifo, &aux_sound, num_elems_to_copy);
 
 		if(kfifo_len(&sound_fifo) == 4) {	//we have a complete sound
 			printk(KERN_INFO "[**COMPLETE SOUND IN SOUND FIFO**]\n");
-			kfifo_out(&fifo, complete_sound, 4);
+			kfifo_out(&sound_fifo, &complete_sound, 4);
 			sound.frequency = (complete_sound[1]<<8)+complete_sound[0];
 			sound.ms = (complete_sound[3]<<8)+complete_sound[2];
 
@@ -254,7 +256,7 @@ static int device_release(struct inode *inode, struct file *filp) {
 static ssize_t device_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
 
 	printk(KERN_INFO "device_write\n");
-	data_size = count * buffer_size;
+	data_size = count;
 	int ret, retq;
 	int copied_bytes;
 	//nota igual hay que multiplicar count * buffer_size
@@ -426,6 +428,7 @@ void spkr_exit(void) {
 	printk(KERN_INFO "spkr exit\n");
 	del_timer_sync(&timer);
 	spkr_off();
+
 	device_destroy(spkrClass, midispo);
 	class_destroy(spkrClass);
 	cdev_del(&mydevice);
