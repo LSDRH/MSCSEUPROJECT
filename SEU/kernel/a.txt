@@ -1,0 +1,160 @@
+[ 5714.216010] [device_init] buffer_threshold = 16
+[ 5720.858651] device_open
+[ 5720.858655] device_open in writing mode
+[ 5720.858694] device_write
+[ 5720.858698] [device_write] 4 bytes copied to fifo. There are still 0 to copy. --> handle_sound.
+[ 5720.858699] [**COMPLETE SOUND IN FIFO**]
+[ 5720.858702] frequency = 1047
+               ms = 562
+[ 5720.858720] spkr set frequency: 1047
+[ 5720.858774] spkr ON
+[ 5720.858837] device_write
+[ 5720.858852] device_write
+[ 5720.858862] device_write
+[ 5720.858869] device_write
+[ 5720.858876] device_write
+[ 5720.858884] device_write
+[ 5720.858885] [device_write] PROCESS IS GOING TO BLOCK.
+[ 5721.446740] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5721.446743] [**COMPLETE SOUND IN FIFO**]
+[ 5721.446746] frequency = 1319
+               ms = 375
+[ 5721.446764] spkr set frequency: 1319
+[ 5721.446768] spkr ON
+[ 5721.446825] device_write
+[ 5721.446826] [device_write] PROCESS IS GOING TO BLOCK.
+[ 5721.830789] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5721.830793] [**COMPLETE SOUND IN FIFO**]
+[ 5721.830816] frequency = 1480
+               ms = 375
+[ 5721.830845] spkr set frequency: 1480
+[ 5721.830853] spkr ON
+[ 5721.830915] device_write
+[ 5721.830923] [device_write] PROCESS IS GOING TO BLOCK.
+[ 5722.214820] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5722.214822] [**COMPLETE SOUND IN FIFO**]
+[ 5722.214825] frequency = 1760
+               ms = 187
+[ 5722.214844] spkr set frequency: 1760
+[ 5722.214848] spkr ON
+[ 5722.214904] device_write
+[ 5722.214905] [device_write] PROCESS IS GOING TO BLOCK.
+[ 5722.406746] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5722.406751] [**COMPLETE SOUND IN FIFO**]
+[ 5722.406755] frequency = 1568
+               ms = 562
+[ 5722.406774] spkr set frequency: 1568
+[ 5722.406779] spkr ON
+[ 5722.406869] device_write
+[ 5722.406871] [device_write] PROCESS IS GOING TO BLOCK.
+[ 5722.982785] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5722.982790] [**COMPLETE SOUND IN FIFO**]
+[ 5722.982794] frequency = 1319
+               ms = 375
+[ 5722.982813] spkr set frequency: 1319
+[ 5722.982818] spkr ON
+[ 5722.982920] device_write
+[ 5722.982921] [device_write] PROCESS IS GOING TO BLOCK.
+[ 5723.366779] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5723.366782] [**COMPLETE SOUND IN FIFO**]
+[ 5723.366785] frequency = 1047
+               ms = 375
+[ 5723.366803] spkr set frequency: 1047
+[ 5723.366808] spkr ON
+[ 5723.366858] device_write
+[ 5723.366858] [device_write] PROCESS IS GOING TO BLOCK.
+[ 5723.750741] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5723.750745] [**COMPLETE SOUND IN FIFO**]
+[ 5723.750750] frequency = 880
+               ms = 187
+[ 5723.750768] spkr set frequency: 880
+[ 5723.750773] spkr ON
+[ 5723.750826] device_write
+[ 5723.750828] [device_write] PROCESS IS GOING TO BLOCK.
+[ 5723.942776] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5723.942780] [**COMPLETE SOUND IN FIFO**]
+[ 5723.942785] frequency = 740
+               ms = 187
+[ 5723.942804] spkr set frequency: 740
+[ 5723.942809] spkr ON
+[ 5723.942895] device_write
+[ 5723.942897] [device_write] PROCESS IS GOING TO BLOCK.
+[ 5724.134749] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5724.134754] [**COMPLETE SOUND IN FIFO**]
+[ 5724.134759] frequency = 740
+               ms = 187
+[ 5724.134778] spkr set frequency: 740
+[ 5724.134783] spkr ON
+[ 5724.134863] device_write
+[ 5724.134865] [device_write] PROCESS IS GOING TO BLOCK.
+[ 5724.326782] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5724.326786] [**COMPLETE SOUND IN FIFO**]
+[ 5724.326791] frequency = 740
+               ms = 187
+[ 5724.326809] spkr set frequency: 740
+[ 5724.326814] spkr ON
+[ 5724.326924] device_write
+[ 5724.326926] [device_write] PROCESS IS GOING TO BLOCK.
+[ 5724.518746] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5724.518750] [**COMPLETE SOUND IN FIFO**]
+[ 5724.518755] frequency = 784
+               ms = 750
+[ 5724.518773] spkr set frequency: 784
+[ 5724.518778] spkr ON
+[ 5724.518877] device_write
+[ 5724.518879] [device_write] PROCESS IS GOING TO BLOCK.
+[ 5725.286735] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5725.286738] [**COMPLETE SOUND IN FIFO**]
+[ 5725.286742] frequency = 0
+               ms = 187
+[ 5725.286743] SILENCIO
+[ 5725.286753] spkr OFF
+[ 5725.286810] device_write
+[ 5725.286811] [device_write] PROCESS IS GOING TO BLOCK.
+[ 5725.478735] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5725.478738] [**COMPLETE SOUND IN FIFO**]
+[ 5725.478741] frequency = 0
+               ms = 187
+[ 5725.478742] SILENCIO
+[ 5725.478752] spkr OFF
+[ 5725.478807] device_write
+[ 5725.478808] [device_write] PROCESS IS GOING TO BLOCK.
+[ 5725.670768] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5725.670771] [**COMPLETE SOUND IN FIFO**]
+[ 5725.670788] frequency = 740
+               ms = 187
+[ 5725.670807] spkr set frequency: 740
+[ 5725.670819] spkr ON
+[ 5725.670905] device_release
+[ 5725.862737] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5725.862742] [**COMPLETE SOUND IN FIFO**]
+[ 5725.862746] frequency = 740
+               ms = 187
+[ 5725.862861] spkr set frequency: 740
+[ 5725.862865] spkr ON
+[ 5726.054747] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5726.054751] [**COMPLETE SOUND IN FIFO**]
+[ 5726.054755] frequency = 740
+               ms = 187
+[ 5726.054774] spkr set frequency: 740
+[ 5726.054779] spkr ON
+[ 5726.250744] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5726.250747] [**COMPLETE SOUND IN FIFO**]
+[ 5726.250750] frequency = 784
+               ms = 187
+[ 5726.250768] spkr set frequency: 784
+[ 5726.250772] spkr ON
+[ 5726.442754] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5726.442758] [**COMPLETE SOUND IN FIFO**]
+[ 5726.442763] frequency = 932
+               ms = 562
+[ 5726.442781] spkr set frequency: 932
+[ 5726.442786] spkr ON
+[ 5727.014737] [timer_callback] Still some sounds in fifo -> handle_sound().
+[ 5727.014741] [**COMPLETE SOUND IN FIFO**]
+[ 5727.014746] frequency = 1047
+               ms = 187
+[ 5727.014764] spkr set frequency: 1047
+[ 5727.014769] spkr ON
+[ 5727.206736] [timer_callback] no more sounds in fifo.
+[ 5727.206748] spkr OFF

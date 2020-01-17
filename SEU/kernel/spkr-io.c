@@ -16,6 +16,8 @@
 #include <linux/sched.h>
 #include <linux/jiffies.h>
 
+#include <linux/spinlock.h>
+
 MODULE_LICENSE("GPL");
 
 #define  DEVICE_NAME "spkr"
@@ -69,6 +71,9 @@ struct my_sound {
 
 //BLOCKING QUEUE
 wait_queue_head_t list_block;
+
+//SPINLOCKS
+spinlock_t fifo_lock;
 
 //receive parameters buffer_size and buffer_threshold from user.
 module_param(buffer_size, int, S_IRUGO);
@@ -138,7 +143,7 @@ void spkr_off(void) {
 */
 static void produce_sound(struct my_sound sound) {
 	if(sound.frequency == 0) {
-		device_is_active = 0;
+		printk(KERN_INFO "SILENCIO\n");
 		spkr_off();
 
 		//set timer
@@ -146,7 +151,6 @@ static void produce_sound(struct my_sound sound) {
 		add_timer(&timer);
 	}
 	else {
-		device_is_active = 1;
 		spkr_set_frequency(sound.frequency);
 		spkr_on();
 
@@ -164,6 +168,7 @@ tasks:
 -If there is a sound to be completed (sound_fifo is not empty) -> we have to complete and play that sound first, even if there are >= 4 bytes in fifo.
 */
 static void handle_sound(void) {
+	spin_lock_bh(&fifo_lock);
 	unsigned char complete_sound[4];
 	struct my_sound sound;
 	//cojo spinlock
@@ -177,6 +182,7 @@ static void handle_sound(void) {
 		sound.ms = (complete_sound[3]<<8)+complete_sound[2];
 
 		printk(KERN_INFO "frequency = %d\nms = %d\n", sound.frequency, sound.ms);
+		device_is_active = 1;
 		produce_sound(sound);
 	}
 	else if ((kfifo_len(&fifo) < 4) | (!kfifo_is_empty(&sound_fifo))) { //fifo doesn't contain a full sound, or there is a sound to be completed stored in sound_fifo.
@@ -196,6 +202,7 @@ static void handle_sound(void) {
 			sound.ms = (complete_sound[3]<<8)+complete_sound[2];
 
 			printk(KERN_INFO "frequency = %d\nms = %d\n", sound.frequency, sound.ms);
+			device_is_active = 1;
 			produce_sound(sound);
 		}
 		else {
@@ -204,6 +211,7 @@ static void handle_sound(void) {
 
 	}
 	//suelto
+	spin_unlock_bh(&fifo_lock);
 }
 
 void timer_callback(struct timer_list  *timer){
@@ -255,25 +263,34 @@ static int device_release(struct inode *inode, struct file *filp) {
 
 static ssize_t device_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
 
-	printk(KERN_INFO "device_write\n");
+	//printk(KERN_INFO "device_write\n");
 	data_size = count;
 	int ret, retq;
 	int copied_bytes;
 	//nota igual hay que multiplicar count * buffer_size
 	//cojo spinlock
+	spin_lock_bh(&fifo_lock);
 	while (data_size > 0) {
+		printk(KERN_INFO "device_write iterating\n");
+		printk(KERN_INFO "device_is_active = %d\n", device_is_active);
 
 		//if fifo is full or not enough space, block current process
 		
 		//suelto spinlock
-		retq = wait_event_interruptible(list_block, (kfifo_avail(&fifo) >= buffer_threshold));
-		//cojo otra vez spinlock
-		if (retq != 0)
-		{
-			printk(KERN_INFO "error in wait_event_interruptuble\n");
-			return -ERESTARTSYS;
+		if(kfifo_is_full(&fifo) | (kfifo_avail(&fifo) < buffer_threshold)) {
+			printk(KERN_INFO "[device_write] PROCESS IS GOING TO BLOCK.\n");
+
+			spin_unlock_bh(&fifo_lock);
+			retq = wait_event_interruptible(list_block, (!kfifo_is_full(&fifo)));
+			spin_lock_bh(&fifo_lock);
+			printk(KERN_INFO, "[device_write] Space available -> waking up process.\n");
+			//cojo otra vez spinlock
+			if (retq != 0)
+			{
+				printk(KERN_INFO "error in wait_event_interruptuble\n");
+				return -ERESTARTSYS;
+			}
 		}
-		
 
 		//Copy all possible bytes into fifo
 		bytes_to_write = min(data_size, kfifo_avail(&fifo));
@@ -292,10 +309,14 @@ static ssize_t device_write(struct file *filp, const char __user *buf, size_t co
 			printk(KERN_INFO "[device_write] %d bytes copied to fifo. There are still %d to copy. --> handle_sound.\n", copied_bytes, data_size);
 			device_is_active = 1;
 			//suelto spinlock
+			spin_unlock_bh(&fifo_lock);
 			handle_sound();
+			spin_lock_bh(&fifo_lock);
 		}
 
 	}
+
+	spin_unlock_bh(&fifo_lock);
 
 	return count;
 }
@@ -387,9 +408,13 @@ int spkr_init(void) {
 		}
 	}
 
+	printk(KERN_INFO "[device_init] buffer_size = %d", buffer_size);
+
 	if (buffer_threshold > buffer_size){
 		buffer_threshold = buffer_size;
 	}
+
+	printk(KERN_INFO "[device_init] buffer_threshold = %d", buffer_threshold);
 
 	//allocate fifo
 	int alloc_kfifo = kfifo_alloc(&fifo, buffer_size, GFP_ATOMIC);
@@ -416,6 +441,9 @@ int spkr_init(void) {
 	//allocate queue
 	init_waitqueue_head(&list_block);
 
+
+	//init spinlock
+	spin_lock_init(&fifo_lock);
 
 	/*play sound
 	spkr_set_frequency(5000);
