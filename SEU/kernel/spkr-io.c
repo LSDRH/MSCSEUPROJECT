@@ -4,7 +4,6 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
-#include <linux/i8253.h>
 #include <linux/kernel.h>
 #include <linux/atomic.h>
 #include <linux/moduleparam.h>
@@ -19,6 +18,16 @@
 #include <linux/spinlock.h>
 
 #include <asm/uaccess.h>
+
+#include <linux/mutex.h>
+
+ 
+#if (LINUX_VERSION_CODE & 0xFFFF00) == KERNEL_VERSION(3,0,0)
+#pragma message("LINUX VERSION 3.0.X")
+extern raw_spinlock_t i8253_lock;
+#else
+#include <linux/i8253.h>
+#endif  	
 
 MODULE_LICENSE("GPL");
 
@@ -74,6 +83,12 @@ struct my_sound {
 //BLOCKING QUEUE
 wait_queue_head_t list_block;
 
+//BLOCKING FSYNC QUEUE
+wait_queue_head_t fsync_block;
+
+//MUTEX TO SYNCHRONIZE ACCESS TO FSYNC BLOCKING QUEUE
+struct mutex fsync_lock;
+
 //SPINLOCKS
 spinlock_t fifo_lock;
 
@@ -86,6 +101,14 @@ static int device_open(struct inode *inode, struct file *filp);
 static int device_release(struct inode *inode, struct file *filp);
 static ssize_t device_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos);
 static ssize_t device_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos);
+#if (LINUX_VERSION_CODE & 0xFFFF00) == KERNEL_VERSION(3,0,0)
+#pragma message("LINUX VERSION 3.0.X")
+static int device_fsync(struct file *filp, int datasync);
+#else
+#pragma message("LINUX VERSION > 3.0.X")
+static int device_fsync(struct file *filp, loff_t start, loff_t end, int datasync);
+#endif 
+
 
 
 
@@ -94,7 +117,8 @@ static struct file_operations ejemplo_fops = {
         .open =     device_open,
         .release =  device_release,
         .write =    device_write,
-		.read = 	device_read
+		.read = 	device_read,
+		.fsync = 	device_fsync
 };
 
 /*Manipulate ports 0x42 and 0x43 to set the desired frequency that will be fed to the speaker*/
@@ -173,7 +197,7 @@ static void handle_sound(void) {
 	spin_lock_bh(&fifo_lock);
 	unsigned char complete_sound[4];
 	struct my_sound sound;
-	//cojo spinlock
+	
 	if((kfifo_len(&fifo) >= 4) & (kfifo_is_empty(&sound_fifo))) { //fifo contains at least a complete sound (4 bytes) and there isn't a sound to be completed in sound_fifo.
 		//kfifo_out(&fifo, &sound.frequency, 2);
 		//kfifo_out(&fifo, &sound.length, 2);
@@ -197,7 +221,7 @@ static void handle_sound(void) {
 		kfifo_out(&fifo, &aux_sound, num_elems_to_copy);
 		kfifo_in(&sound_fifo, &aux_sound, num_elems_to_copy);
 
-		if(kfifo_len(&sound_fifo) == 4) {	//we have a complete sound
+		if(kfifo_len(&sound_fifo) == 4) {	//we have a complete sound in sound_fifo
 			printk(KERN_INFO "[**COMPLETE SOUND IN SOUND FIFO**]\n");
 			kfifo_out(&sound_fifo, &complete_sound, 4);
 			sound.frequency = (complete_sound[1]<<8)+complete_sound[0];
@@ -212,15 +236,20 @@ static void handle_sound(void) {
 		}
 
 	}
-	//suelto
+	
 	spin_unlock_bh(&fifo_lock);
 }
-
-void timer_callback(struct timer_list  *timer){
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
+void timer_callback(struct timer_list  *timer)
+#else
+void timer_callback(const unsigned long d)
+#endif
+{
 
 	if(kfifo_is_empty(&fifo)) {
 		printk(KERN_INFO "[timer_callback] no more sounds in fifo.\n");
 		device_is_active = 0;
+		wake_up_interruptible(&fsync_block);
 		spkr_off();
 	}
 	else {
@@ -235,6 +264,7 @@ void timer_callback(struct timer_list  *timer){
 		printk(KERN_INFO "[timer_callback] Space available -> waking up process.\n");
 		wake_up_interruptible(&list_block);
 	}
+	
 }
 
 static int device_open(struct inode *inode, struct file *filp) {
@@ -268,17 +298,19 @@ static int device_release(struct inode *inode, struct file *filp) {
 
 static ssize_t device_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
 
-	//printk(KERN_INFO "device_write\n");
+	printk(KERN_INFO "device_write\n");
 	data_size = count;
 	int ret, retq;
 	int copied_bytes;
-	//nota igual hay que multiplicar count * buffer_size
+	
 	const char *test_buf;
 
 	if(get_user(test_buf, buf) != 0) {
 		printk(KERN_ALERT "Error in user buffer.\n");
 		return -EFAULT;
 	}
+
+	mutex_lock(&fsync_lock);
 
 	//cojo spinlock
 	spin_lock_bh(&fifo_lock);
@@ -333,8 +365,30 @@ static ssize_t device_write(struct file *filp, const char __user *buf, size_t co
 	}
 
 	spin_unlock_bh(&fifo_lock);
+	mutex_unlock(&fsync_lock);
 
 	return count;
+}
+
+#if (LINUX_VERSION_CODE & 0xFFFF00) == KERNEL_VERSION(3,0,0)
+#pragma message("LINUX VERSION 3.0.X")
+static int device_fsync(struct file *filp, int datasync)
+#else
+#pragma message("LINUX VERSION > 3.0.X")
+static int device_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
+#endif 
+{
+	
+	printk(KERN_INFO "device_fsync\n");
+	mutex_lock(&fsync_lock);
+	if(wait_event_interruptible(fsync_block, kfifo_len(&fifo) < 4)){
+		return -ERESTARTSYS;
+	}
+	mutex_unlock(&fsync_lock);
+
+	printk(KERN_INFO "exit device_fsync\n");
+	return 0;
+
 }
 
 static ssize_t device_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos) {
@@ -447,19 +501,30 @@ int spkr_init(void) {
 	}
 
 	//allocate timer
-	timer_setup(&timer, timer_callback, 0);
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(4,14,0)
+    init_timer(&timer);
+    timer.data = (unsigned long) &timer;
+    timer.function = timer_callback;
+	#else
+    timer_setup(&timer, timer_callback, 0);
+	#endif
 	
 	
 	//init_timer(&timer);
 	//timer.data = (unsigned long) 0;
 	//timer.function = timer_callback;
 
-	//allocate queue
+	//init process queue
 	init_waitqueue_head(&list_block);
 
+	//init fsync queue
+	init_waitqueue_head(&fsync_block);
 
 	//init spinlock
 	spin_lock_init(&fifo_lock);
+
+	//init fsync mutex
+	mutex_init(&fsync_lock);
 
 	/*play sound
 	spkr_set_frequency(5000);
