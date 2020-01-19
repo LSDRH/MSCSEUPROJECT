@@ -58,7 +58,7 @@ static size_t bytes_to_write;				//indicates the number of bytes to write to the
 static int device_is_active = 0; 
 
 //parameters needed by ioctl function
-atomic_t is_silent = ATOMIC_INIT(1);
+atomic_t reset = ATOMIC_INIT(0); //initially we don't want to reset
 int mute[2];
 
 //parameters used to set up module
@@ -184,7 +184,6 @@ static void produce_sound(struct my_sound sound) {
 	if(sound.frequency == 0) {
 		printk(KERN_INFO "SILENCIO\n");
 		spkr_off();
-		atomic_set(&is_silent, 1);
 
 		//set timer
 		timer.expires = jiffies + msecs_to_jiffies(sound.ms);
@@ -192,7 +191,6 @@ static void produce_sound(struct my_sound sound) {
 	}
 	else {
 		spkr_set_frequency(sound.frequency);
-		atomic_set(&is_silent, 0);
 
 		if(mute[0] == 0) { //if speaker is not muted, turn it on. Else, leave it silent.
 			spkr_on();
@@ -272,7 +270,22 @@ void timer_callback(const unsigned long d)
 	}
 	else {
 		printk(KERN_INFO "[timer_callback] Still some sounds in fifo -> handle_sound().");
-		handle_sound();
+
+		//it reset == 1 -> erase KFIFO.
+		if(atomic_read(&reset) == 1) {
+
+			//play current sound (if there is any)
+			handle_sound();
+			printk(KERN_INFO "[timer_callback] reseting kfifo...\n");
+			//erase KFIFO
+			kfifo_reset_out(&fifo);
+			//set reset = 0, so that we don't keep on reseting kfifo.
+			atomic_set(&reset, 0);
+		}
+		else {
+			handle_sound();
+		}
+		
 	}
 
 	printk(KERN_INFO "[timer_callback] kfifo_avail = %d\n", kfifo_avail(&fifo));
@@ -441,7 +454,9 @@ static long device_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				return -EFAULT;
 			}
 			break;
-		//case SPKR_RESET:
+		case SPKR_RESET:
+			printk(KERN_INFO "SPKR_RESET\n");
+			atomic_set(&reset, 1);
 	}
 }
 
