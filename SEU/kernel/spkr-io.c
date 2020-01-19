@@ -18,6 +18,7 @@
 #include <linux/spinlock.h>
 
 #include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/mutex.h>
 
@@ -41,6 +42,12 @@ MODULE_LICENSE("GPL");
 
 DEFINE_RAW_SPINLOCK(i8253_lock);
 
+//IOCTL operation
+#define MAGIC_NUM '9'
+#define SPKR_SET_MUTE_STATE _IOR(MAGIC_NUM, 1, int *)
+#define SPKR_GET_MUTE_STATE _IOR(MAGIC_NUM, 2, int *)
+#define SPKR_RESET _IO(MAGIC_NUM, 3)
+
 //parameters to be received by user
 static int buffer_size = PAGE_SIZE;
 static int buffer_threshold = PAGE_SIZE;
@@ -50,6 +57,9 @@ static size_t data_size;					//initially is equal to count. It indicates the rem
 static size_t bytes_to_write;				//indicates the number of bytes to write to the system kfifo.
 static int device_is_active = 0; 
 
+//parameters needed by ioctl function
+atomic_t is_silent = ATOMIC_INIT(1);
+int mute[2];
 
 //parameters used to set up module
 static dev_t midispo;
@@ -107,8 +117,9 @@ static int device_fsync(struct file *filp, int datasync);
 #else
 #pragma message("LINUX VERSION > 3.0.X")
 static int device_fsync(struct file *filp, loff_t start, loff_t end, int datasync);
-#endif 
+#endif
 
+static long device_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
 
 
@@ -118,7 +129,8 @@ static struct file_operations ejemplo_fops = {
         .release =  device_release,
         .write =    device_write,
 		.read = 	device_read,
-		.fsync = 	device_fsync
+		.fsync = 	device_fsync,
+		.unlocked_ioctl =  device_ioctl
 };
 
 /*Manipulate ports 0x42 and 0x43 to set the desired frequency that will be fed to the speaker*/
@@ -166,11 +178,13 @@ void spkr_off(void) {
 /*PRODUCE_SOUND
 -Check if sound is silent -> if it is, sets device off and timer on.
 -If not, sets device on, and also set frequency and timer.
+-If ioctl operation SPKR_SET_MUTE says so, we must mute the speaker (but don't stop consuming sounds!)
 */
 static void produce_sound(struct my_sound sound) {
 	if(sound.frequency == 0) {
 		printk(KERN_INFO "SILENCIO\n");
 		spkr_off();
+		atomic_set(&is_silent, 1);
 
 		//set timer
 		timer.expires = jiffies + msecs_to_jiffies(sound.ms);
@@ -178,7 +192,11 @@ static void produce_sound(struct my_sound sound) {
 	}
 	else {
 		spkr_set_frequency(sound.frequency);
-		spkr_on();
+		atomic_set(&is_silent, 0);
+
+		if(mute[0] == 0) { //if speaker is not muted, turn it on. Else, leave it silent.
+			spkr_on();
+		}
 
 		//set timer
 		timer.expires = jiffies + msecs_to_jiffies(sound.ms);
@@ -389,6 +407,42 @@ static int device_fsync(struct file *filp, loff_t start, loff_t end, int datasyn
 	printk(KERN_INFO "exit device_fsync\n");
 	return 0;
 
+}
+
+static long device_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)  {
+	printk(KERN_INFO "device_ioctl\n");
+	unsigned long aux;
+	switch(cmd) {
+		case SPKR_SET_MUTE_STATE:
+		if (copy_from_user(mute, (int *) arg, sizeof(int *)) != 0) {
+			printk(KERN_INFO "error in SPKR_SET_MUTE_STATE copy from user\n");  
+			return -EFAULT;
+		}
+
+		printk(KERN_INFO "mute = %d\n", mute[0]);
+
+			if(mute[0] != 0) { //mute speaker immediately
+				printk(KERN_INFO "mute on\n");
+				spkr_off();
+			}
+			else { //unmute speaker
+				printk(KERN_INFO "mute off\n");
+				/*if(atomic_read(&is_silent) == 0 ) { //current sound is not silent
+					spkr_on();
+				}*/
+			}
+			printk(KERN_INFO "SPKR_SET_MUTE_STATE: %d\n", mute[0]);
+			break;
+		case SPKR_GET_MUTE_STATE:
+			printk("SPKR_GET_MUTE_STATE: %d\n", mute[0]);
+
+			if(copy_to_user((int *)arg, mute, sizeof(int *)) != 0) {
+				printk(KERN_INFO "error in SPKR_GET_MUTE_STATE copy to user\n");
+				return -EFAULT;
+			}
+			break;
+		//case SPKR_RESET:
+	}
 }
 
 static ssize_t device_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos) {
