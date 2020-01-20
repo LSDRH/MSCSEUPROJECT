@@ -38,7 +38,6 @@ MODULE_LICENSE("GPL");
 #define PIT_CHANNEL_2_GATE_PORT 0x61  //To control the input signal gets or not to channel 2 of the pit.
 #define PIT_CHANNEL_2_DATA_PORT 0x42  //To access timer 2.
 #define PIT_OPERATION_MODE_PORT 0x43  //To specify the operation: reads are ignored.
-//#define PAGE_SIZE 4096
 
 DEFINE_RAW_SPINLOCK(i8253_lock);
 
@@ -67,6 +66,7 @@ static struct cdev mydevice;
 static struct class* spkrClass = NULL;
 static struct device* spkrDevice = NULL;
 static int mj;
+static int mn = 0;
 atomic_t write_device_open = ATOMIC_INIT(0); /* Is the device open?  Used to prevent multiple access to the device */
 
 
@@ -101,6 +101,9 @@ struct mutex fsync_lock;
 
 //SPINLOCKS
 spinlock_t fifo_lock;
+
+//receive minor parameter
+module_param(mn, int, S_IRUGO);
 
 //receive parameters buffer_size and buffer_threshold from user.
 module_param(buffer_size, int, S_IRUGO);
@@ -215,9 +218,8 @@ static void handle_sound(void) {
 	struct my_sound sound;
 	
 	if((kfifo_len(&fifo) >= 4) & (kfifo_is_empty(&sound_fifo))) { //fifo contains at least a complete sound (4 bytes) and there isn't a sound to be completed in sound_fifo.
-		//kfifo_out(&fifo, &sound.frequency, 2);
-		//kfifo_out(&fifo, &sound.length, 2);
-		printk(KERN_INFO "[**COMPLETE SOUND IN FIFO**]\n");
+		
+		//printk(KERN_INFO "[**COMPLETE SOUND IN FIFO**]\n");
 
 		kfifo_out(&fifo, &complete_sound, 4);
 		sound.frequency = (complete_sound[1]<<8)+complete_sound[0];
@@ -232,13 +234,13 @@ static void handle_sound(void) {
 
 		int num_elems_to_copy = min(kfifo_avail(&sound_fifo), kfifo_len(&fifo));
 
-		printk(KERN_INFO "[**INCOMPLETE SOUND IN FIFO**]\n copying %d bytes to sound fifo...\n", num_elems_to_copy);
+		//printk(KERN_INFO "[**INCOMPLETE SOUND IN FIFO**]\n copying %d bytes to sound fifo...\n", num_elems_to_copy);
 		
 		kfifo_out(&fifo, &aux_sound, num_elems_to_copy);
 		kfifo_in(&sound_fifo, &aux_sound, num_elems_to_copy);
 
 		if(kfifo_len(&sound_fifo) == 4) {	//we have a complete sound in sound_fifo
-			printk(KERN_INFO "[**COMPLETE SOUND IN SOUND FIFO**]\n");
+			//printk(KERN_INFO "[**COMPLETE SOUND IN SOUND FIFO**]\n");
 			kfifo_out(&sound_fifo, &complete_sound, 4);
 			sound.frequency = (complete_sound[1]<<8)+complete_sound[0];
 			sound.ms = (complete_sound[3]<<8)+complete_sound[2];
@@ -343,28 +345,23 @@ static ssize_t device_write(struct file *filp, const char __user *buf, size_t co
 
 	mutex_lock(&fsync_lock);
 
-	//cojo spinlock
 	spin_lock_bh(&fifo_lock);
 	while (data_size > 0) {
-		printk(KERN_INFO "device_write iterating\n");
-		printk(KERN_INFO "device_is_active = %d\n", device_is_active);
-
-		//if fifo is full or not enough space, block current process
-		
-		//suelto spinlock
+		printk(KERN_INFO "[device_write] *INFO*: device_is_active = %d\n", device_is_active);
 		printk(KERN_INFO "fifo avail = %d\n", (kfifo_avail(&fifo)));
 
 		if(kfifo_is_full(&fifo)) {
-			printk(KERN_INFO "[device_write] PROCESS IS GOING TO BLOCK.\n");
+			printk(KERN_INFO "[device_write] no space available -> blocking process.\n");
 
 			spin_unlock_bh(&fifo_lock);
 			retq = wait_event_interruptible(list_block, (!kfifo_is_full(&fifo)));
 			spin_lock_bh(&fifo_lock);
-			printk(KERN_INFO, "[device_write] Space available -> waking up process.\n");
-			//cojo otra vez spinlock
+
+			printk(KERN_INFO, "[device_write] space available -> waking up process.\n");
+			
 			if (retq != 0)
 			{
-				printk(KERN_INFO "error in wait_event_interruptuble\n");
+				printk(KERN_INFO "error in wait_event_interruptible\n");
 				return -ERESTARTSYS;
 			}
 		}
@@ -378,17 +375,17 @@ static ssize_t device_write(struct file *filp, const char __user *buf, size_t co
 		}
 
 		data_size -= copied_bytes;
-		printk(KERN_INFO "[device_write] %d bytes copied to fifo. There are still %d to copy.\n", copied_bytes, data_size);
-		printk(KERN_INFO "fifo len = %d\n", kfifo_len(&fifo));
+		printk(KERN_INFO "[device_write] %d bytes copied to fifo.\n", copied_bytes, data_size);
 	
 		buf += copied_bytes;
 
 		if (!device_is_active) {
 
 			device_is_active = 1;
-			//suelto spinlock
 			spin_unlock_bh(&fifo_lock);
+
 			printk(KERN_INFO "[device_write]-->handle_sound.\n");
+
 			handle_sound();
 			spin_lock_bh(&fifo_lock);
 		}
@@ -440,9 +437,6 @@ static long device_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			}
 			else { //unmute speaker
 				printk(KERN_INFO "mute off\n");
-				/*if(atomic_read(&is_silent) == 0 ) { //current sound is not silent
-					spkr_on();
-				}*/
 			}
 			printk(KERN_INFO "SPKR_SET_MUTE_STATE: %d\n", mute[0]);
 			break;
@@ -467,7 +461,7 @@ static ssize_t device_read(struct file *filp, char __user *buf, size_t count, lo
 
 static int reserve_mjAndmn(void) {
 	//reserve major and minor numbers
-	int registerMajor = alloc_chrdev_region(&midispo, 0, 1, DEVICE_NAME);
+	int registerMajor = alloc_chrdev_region(&midispo, mn, 1, DEVICE_NAME);
 
 	if(registerMajor < 0) {
 		printk(KERN_ALERT "spkr failed to register a major number\n");
@@ -519,10 +513,10 @@ int spkr_init(void) {
 	//reserve major and minor numbers
 	reserve_mjAndmn();
 
-	//iniciación y alta del dispositivo
+	//register device
 	register_device_in_kernel();
 
-	//alta dispositivo en sysfs
+	//register device in sysfs
 	register_and_load_class();
 
 
@@ -577,11 +571,6 @@ int spkr_init(void) {
 	#else
     timer_setup(&timer, timer_callback, 0);
 	#endif
-	
-	
-	//init_timer(&timer);
-	//timer.data = (unsigned long) 0;
-	//timer.function = timer_callback;
 
 	//init process queue
 	init_waitqueue_head(&list_block);
@@ -595,10 +584,6 @@ int spkr_init(void) {
 	//init fsync mutex
 	mutex_init(&fsync_lock);
 
-	/*play sound
-	spkr_set_frequency(5000);
-	spkr_on();*/
-
 	return 0;
 }
 
@@ -611,9 +596,6 @@ void spkr_exit(void) {
 	class_destroy(spkrClass);
 	cdev_del(&mydevice);
 	unregister_chrdev_region(midispo, 1);
-
-	/*bye sound
-	spkr_off();*/
 }
 
 module_init(spkr_init);
